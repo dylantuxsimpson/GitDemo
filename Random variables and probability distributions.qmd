@@ -1,0 +1,462 @@
+---
+title: "Module 04: Random variables and probability functions"
+author: "Dylan Simpson"
+format: html
+editor: visual
+---
+
+In this module, we'll further explore the R functions for the common probability functions. In doing so, I hope to build up your understanding of probability functions and how they relate to the probability of real world outcomes, and build your intuition for how we use these to test hypotheses and answer real-world questions.
+
+# Part 1: Discrete random variables
+
+## Probability mass functions
+
+For discrete random variables (like binomial and Poisson), the mathematical functions that yield the probability of a particular outcome are called *probability mass functions*. For the binomial, the PMF looks like this: $f(x | n, p) = {n \choose x} p^x (1-p)^{n-x}$, where *p* is the probability of success of one Bernoulli trial, and $f(x | n, p)$ yields the probability of getting exactly $x$ successes out of $n$ Bernoulli trials.
+
+In R, there are functions to make calculations from the mass functions of different discrete distributions. For the binomial and Poisson, these are `dbinom` and `dpois`, respectively. Check them out:
+
+```{r}
+# Run one by one to look at the help pages
+?dbinom
+?dpois
+```
+
+Note: these are in the same family of R functions as `rbinom` and `rpois`, which we used last time to generate random realizations of binomial and Poisson processes. We'll get to the the `p` and `q` ones later.
+
+For both `dbinom` and `dpois`, the arguments are `x`, which is the outcome you are asking the probability of, and the distribution parameters (*size* and *prob* or *lambda*). This allows you to ask **what is the probability of X, *given these particular parameters*?** Note: this is where our use of 'parameter' gets confusing. Here we're talking about distribution parameters, but remember that we use these statistical distributions as models of real world processes. The distribution (or model) parameters, then, represent our assumptions about the true underlying characteristics of our focal statistical population.
+
+For example, the code below could ask, "What is the probability of 10 out of 30 randomly selected sites being occupied by my focal species, given that the true site occupancy is 0.5?" It could also be used to ask, "What is the probability of flipping 30 coins and getting 10 heads?" Different real-world scenarios, but they are both well-modeled by a binomial process. And, in each, the parameter $p=0.5$ describes an assumed truth about the world (the proportion sites occupied or probability of getting a heads).
+
+Okay, here we go:
+
+```{r}
+# Model/population parameters:
+# (feel free to play around with the parameters)
+successes = 10
+n.trials = 30
+p = 0.5
+
+# probability:
+dbinom(x = successes, size = n.trials, prob = p)
+```
+
+Whoa! That's pretty low. But isn't 10 not that far off from the expected value of 15? What is the probability of 15 occupied sites?
+
+```{r}
+dbinom(15, 30, 0.5) # remember you don't have to name your arguments,
+                    # SO LONG AS they are in the right order
+```
+
+That's pretty small too!! Why is there a small probability of getting the expected value? Well, because there are a lot of distinct possibilities when you have 30 Bernoulli trials. Remember the law of total probability: the probabilities of all discrete outcomes have to sum to 1. So the more possible outcomes, the smaller the probability of any individual outcome. Thus, even if the expected outcome (the mean, or average) is the most probable (or "likely") outcome, it may have a small absolute probability.
+
+To see this in action, let's look at the probabilities of all outcomes in this scenario:
+
+```{r}
+## ~~ Run this line by line ~~ ##
+
+successes = 10
+n.trials = 30
+p = 0.5
+
+# reminder: the command X:Y gives you a vector of integers from X through Y
+0:30
+
+# most functions in R can take a vector (a string of numbers) as an argument
+# in which case they run the function on each element of the vector in turn:
+p.30.5 <- dbinom(x = 0:30, size = 30, prob = 0.5)
+
+# Remember, we can pull out individual results from this vector by indexing:
+p.30.5[1] # first entry, for x = 0 (probability of 0 successes)
+p.30.5[11] # 11th entry, for x = 10
+
+# If we wanted the probability of one result or the another,
+# we can sum them:
+p.30.5[2] + p.30.5[3] # probability of x = 1 or x = 2
+
+# Note: they sum to 1:
+sum(p.30.5)
+
+# Make a plot to show all these together:
+barplot(height = p.30.5, # height of the bars
+        names.arg = 0:30, # names of the bars
+        xlab = "Number successes out of 30 trials",
+        ylab = "Probability"
+) # the closing parenthesis is down here
+```
+
+Having the probability mass function also lets us easily calculate the probability of a *range* of values. For instance, maybe we weren't interested in the probability of getting *exactly* 10 successes, but getting *10 or fewer*. This could be calculated as the sum of all outcomes from 0 to 10. Below, we can see that $P(x \le 10 | n=30, p = 0.5) = 0.049$. To further illustrate, the bar plot highlights the bars for the probabilities we're summing.
+
+```{r}
+sum( # dropping nested functions onto new lines is a common way to format code
+  dbinom(0:10, 30, 0.5)
+)
+
+# Or, because we already have it saved:
+sum(p.30.5[1:11])
+
+barplot(height = p.30.5,
+        names.arg = 0:30,
+        xlab = "Number successes out of 30 trials",
+        ylab = "Probability",
+        col = c(rep('red', 11), rep('gray80', 20))
+            # col is the color argument, to change the color of plots
+            # c() concatenates its arguments into one vector
+            # the rep() function repeats things
+            # Together, I used these to supply the color of every bar
+            # by repeating 'red' 11 times and 'gray80' 20 times.
+)
+
+```
+
+This is actually a good method for asking how unusual an outcome is. Because the outcome of any single outcome might be really low, rather than asking "how weird is this specific outcome? it is usually a better question to ask,"What is the probability of an outcome *at least* this weird?" Or, more technically, "What is the probability of getting a result *this extreme or more extreme*?"
+
+We can do it on the high end too:
+
+```{r}
+# What is the probability of getting 16 or more heads out of 30?
+ 
+barplot(height = p.30.5,
+        names.arg = 0:30,
+        xlab = "Number successes out of 30 trials",
+        ylab = "Probability",
+        col = c(rep('gray80', 16), rep('red', 15))
+)
+
+sum(p.30.5[17:31])
+# High! That's not very extreme
+
+# What about getting 22 or more heads out of 30?
+barplot(height = p.30.5,
+        names.arg = 0:30,
+        xlab = "Number successes out of 30 trials",
+        ylab = "Probability",
+        col = c(rep('gray80', 22), rep('red', 9))
+)
+
+sum(p.30.5[23:31])
+# Much smaller!
+```
+
+### Problem 1
+
+Let's return to our made up example about *Bombus affinis*: true site occupancy is 0.05, but you don't know this. You're visiting randomly selected sites - how likely are you to encounter *B. affinis*? This will depend in part on how many sites you visit.
+
+To start, let's say you visit 10 sites. In the code chunk below, do the following:
+
+- Calculate the probability of all possible outcomes. That is, the probability of encountering *B. affinis* at 0 sites, 1 site, 2, sites, etc., up to all 10 sites. **Save these results as a vector**. Give it a name that is relevant and will help you remember what it is. To make sure you did it right, demonstrate that these probabilities sum to 1. Then, use this vector to complete the following:
+
+- Make a bar plot showing these probabilities, and label your axes appropriately. (Don't worry about the colors).
+
+- Report the probability of not encountering any *B. affinis* at any site (i.e. x = 0).
+
+- Report the probability encountering *B. affinis* at exactly 1 site (i.e. x = 1)
+
+- Calculate the probability of encountering *B. affinis* at *at least* one site (sum across x = 1:10)
+
+```{r}
+# 1.1a Vector of all probabilities:
+
+
+# 1.1b Show these sum to 1:
+
+
+# 1.2 Barplot to show the probablity distribution:
+
+
+# 1.3 Probability of never encountering B. affinis:
+
+
+# 1.4 Probability of encountering B. affinis exactly one site:
+
+
+# 1.5 Probability of encounter B. affinis at *at least* one site:
+
+
+
+```
+
+## Cumulative distribution functions
+
+Asking "what is the probability of an outcome less (or greater) than the outcome I observed?" is a common question in statistics. So naturally there is a function to do this, called the cumulative distribution function. This is a function that sums the cumulative probability of values up to and including the given value (i.e. $f(x) = P(\le x)$). You can get $P(> x)$ by subtraction: $P(> x) = 1 - P(\le x)$. For the binomial and Poisson distributions, these functions are `pbinom()` and `ppois()`, respectively.
+
+```{r}
+# Model/population parameters:
+successes = 10
+n.trials = 30
+p = 0.5
+
+# probability of getting exactly X successes:
+dbinom(successes, n.trials, p)
+
+# probability of getting *X or fewer* successes:
+pbinom(successes, n.trials, p)
+
+# Probability of getting *more than X* successes:
+pbinom(successes, n.trials, p, lower.tail = FALSE)
+```
+
+This also works with the Poisson:
+
+```{r}
+# Model/population parameters:
+lambda = 3 # mean abundance or frequency
+n.bins = 10 # number of outcomes to calculate probability of
+
+# observed outcome:
+obs = 2
+
+# Probability of all outcomes:
+probs <- dpois(0:n.bins, # Poisson does not have an upper bound,
+                     # but we gotta cut it off somewhere.
+                     # You can adjust this by changing n.bins, above
+               lambda = lambda # the argument and object have the same name;
+                               # that's ok
+               )
+sum(probs) # might round to 1, but technically does not sum to 1
+           # because the Poisson does not have an upper bound
+
+# probability of an observation less than or equal to obs:
+ppois(obs, lambda)
+
+# Barplot w/ red bars highlighting the probabilities to be summed:
+barplot(height = probs, names.arg = 0:n.bins,
+        xlab = "Observed abundance",
+        ylab = "Probability",
+        col = c(
+          rep('red', obs+1),
+          rep('gray80', n.bins-obs)
+        ))
+
+# or look at the upper tail:
+
+# probability of observing abundance *at least as high* as `obs` 
+# (we subtract 1 because the upper tail excludes the input value)
+1 - ppois(obs-1, lambda)
+# or make R do that subtraction part for you:
+ppois(obs-1, lambda, lower.tail = F)
+
+# Barplot w/ red bars highlighting the probabilities to be summed:
+barplot(height = probs, names.arg = 0:n.bins,
+        xlab = "Observed abundance",
+        ylab = "Probability",
+        col = c(
+          rep('gray80', obs),
+          rep('red', n.bins-obs+1)
+        ))
+
+
+```
+
+How might we use this to answer ecological questions?
+
+Let's say that after a few years of study, you have determined through repeated observation that *B. affinis* occupancy (i.e. proportion of sites occupied) is 0.05, and that abundance at occupied sites is 3 bees per hectare (bees/ha). Then let's say you expand your study into a new region, and you start sampling sites in Minnesota.
+
+In your first field season in Minnesota, you visit 30 sites to estimate occupancy. In the end, you have found *B. affinis* at 5 of your 30 sites. How unusual is this? Is this high, given what you know from your surveys in the Appalachians?
+
+### Problem 2
+
+As above, we don't just want to ask if the exact result of 5 is unusual, but whether a result of 5 or greater would be unusual.
+
+Using `pbinom`, calculate the probability of finding *B. affinis* at 5 or more sites out of 30, given its true occupancy rate is 0.05. (Remember that you can use `lower.tail = F` to make it sum the probabilities greater than `x`.)
+
+```{r}
+
+
+```
+
+You should have found that, if the true occupancy rate in Minnesota were 0.05, there was a less than 1% chance of having found *B. affinis* at 5 or more sites. This can be taken as evidence that the occupancy rate is higher in Minnesota than it is in the Appalachians.
+
+We could have formulated this question as a pair of statistical hypotheses:
+
+- $H_0$: Occupancy rate of *B. affinis* is the same in Minnesota and the Appalachians (this is the "null hypothesis").
+
+- $H_A$: Occupancy rates are higher in Minnesota than in the Appalachians.
+
+And the code you just wrote above could be interpreted as the statistical question: What is probability of observing occupancy rates as or more extreme than we did, *given the null hypothesis were true*?
+
+We'll practice these ideas more in the next module, but first let's consider the functions used for continuous probability distributions.
+
+# Part 2: Continuous random variables and probability density functions
+
+Continuous probability distributions are governed by probability *density* functions. Here and throughout this class we will focus almost exclusively on the normal distribution, but remember that there are others.
+
+The R functions look much the same as the mass functions for discrete distributions, but the value they return is the probability *density* for a particular outcome, not the absolute probability in a strict sense. Probability density can be thought of as the relative probability (i.e. higher density is more likely outcome), but remember that the absolute probability of any specific outcome is 0.
+
+Here is code to calculate and plot probability density for a normal distribution. Feel free to play around with the parameters at the top and rerun the chunk.
+
+```{r}
+# Model/population parameters:
+mu = 4 # mean
+sigma = 2 # standard deviation
+
+# a specific observation:
+obs = 2.3
+
+# prob density:
+dnorm(x = obs, mean = mu, sd = sigma)
+
+## Plot:
+
+# a range of x values to plot:
+# (the seq() function creates a vector from a starting value to an ending value,
+# by a given increment size)
+x.vals <- seq(mu-3*sigma, # starting value 3 sd less than the mean
+              mu+3*sigma, # ending value 3 sd greater than the mean
+              by = 0.1) # increments of 0.1
+
+# probability densities across that range:
+prob.density <- dnorm(x = x.vals, mean = mu, sd = sigma)
+
+# plot a curve:
+# (note: we are approximating the curve by connecting many dots of a scatter plot)
+plot(x.vals, prob.density, # first is x axis values, 2nd is y axis values
+     type = 'l', # tells R to make it a line plot by connecting the dots
+     xlab = "Observation",
+     ylab = "Probability density of observation",
+     lwd = 2 # line width double
+     )
+
+# Here are lines to pinpoint the prob. density of that observation:
+# (don't worry about how this works unless you want to for funsies.
+# Just know that these won't run on their own, they have to be run with the plot function)
+segments(x0 = obs, y0 = 0, # draw a line segment, starting at (obs, 0)
+         y1 = dnorm(obs, mu, sigma), # end at (obs, dnorm(obs))
+         lty = 2, # line type 2 is a dashed line
+          col = 'red' # make it red
+       )
+
+segments(x0 = min(x.vals), y0 = dnorm(obs, mu, sigma), # start at y axis
+         x1 = obs, # and draw across
+         lty = 2, # line type 2 is a dashed line
+          col = 'red' # make it red
+       )
+       
+```
+
+To get absolute probabilities, we have to specify a range of outcomes --- essentially, we have to make a bin, like a histogram. We do this with the cumulative distribution function `pnorm()`. Usually, we'll do this to ask about the probability of any value greater than or less than *x*. But we easily use arithmetic to solve for the probability of a range between two values.
+
+```{r}
+# Model/population parameters:
+# (mean = 0 and sd = 1 is the 'standard normal')
+mu = 0
+sigma = 1 
+
+# observed value:
+obs = 1
+
+# probability of observation less than or equal to obs:
+pnorm(obs, mean = mu, sd = sigma)
+
+# P(greater than obs):
+pnorm(obs, mu, sigma, lower.tail = F)
+
+# Probability between -1 and 1:
+pnorm(1, mu, sigma) - pnorm(-1, mu, sigma)
+
+# 95% of observations will be between the mean +/- 1.96*sigma:
+pnorm(mu + 1.96*sigma, mu, sigma) - pnorm(mu - 1.96*sigma, mu, sigma)
+
+
+# Plot to demonstrate:
+
+x.vals <- seq(mu-3*sigma, # starting value 3 sd less than the mean
+              mu+3*sigma, # ending value 3 sd greater than the mean
+              by = 0.1) # increments of 0.1
+
+# probability densities across that range:
+prob.density <- dnorm(x = x.vals, mean = mu, sd = sigma)
+
+plot(x.vals, prob.density, # first is x axis values, 2nd is y axis values
+     type = 'l', # tells R to make it a line plot by connecting the dots
+     xlab = "Observation",
+     ylab = "Probability density of observation",
+     lwd = 3 # line width triple
+     )
+
+# vertical line at +/- 1.96 standard deviations:
+abline(v = c(mu - 1.96*sigma, mu + 1.96*sigma), # v stands for vertical
+       col = 'red', 
+       lty = 2)
+```
+
+## Probability quantiles
+
+Sometimes, rather than asking how likely or unlikely a range of values are, you want to know what values correspond to a particular probability. For example, what value corresponds to the 95th percentile of a distribution? This would let you know ahead of time what range of values you would consider to be unusually high.
+
+To do this, use the `q` prefix: `qnorm`, `qbinom`, `qpois`, etc. For example:
+
+```{r}
+# 95th percentile of the standard normal distribution:
+# (95% of observations are expected to be less than this value)
+qnorm(0.95)
+
+# 5th percentile:
+qnorm(0.05) # notice: the normal is symmetrical!
+
+# 95th percentile of a Poisson with lambda = 5:
+# (only 5% of observations are expected to be greater than 9)
+qpois(0.95, lambda = 5)
+```
+
+### Problem 3
+
+In the chunk below, assume a normally distributed random variable with a **mean of 6** and a **standard deviation of 4**. Then calculate:
+
+- The probability density of $x = 3$ (use `dnorm`)
+- The probability that $x \le 3$ (use `pnorm`)
+- The probability that $x > 3$ (use `pnorm`; this and the last should sum to 1)
+- The probability that x is between 8 and 9 (i.e. $P(8 < x < 9)$; use `pnorm`)
+- Calculate the 66th percentile (i.e., the value that 66% of observations are less than)
+
+```{r}
+# 3.1: P(x = 3)
+
+
+# 3.2: P(x <= 3)
+
+
+# 3.3: P(x > 3)
+
+
+# 3.4 P(8 < x < 9)
+
+
+# 3.5 66th percentile:
+```
+
+# Part 3: Practice
+
+To put all this together, let's consider one more scenario:
+
+### Problem 4
+
+Pretend: you study a species carnivorous pitcher plant and its prey. You've found that individuals of a particular species of fly get trapped by the plant, on average, on one visit in 12 (i.e, *P(capture) = 0.083*), and that variation in this across observational periods follows well a binomial distribution.
+
+Now you've found two variants of the plant --- one has an unusual, darker color pattern, and another has a modified, narrower shape. You wonder if these affect the catch rate. You spend time observing visits by this same species of fly to each of these variants and find:
+
+- At the color variant, 10 of 150 flies are captured
+
+- At the shape variant, 6 of 200 flies were captured
+
+Your ecological question is, "Do color or shape affect the plant's catch rate?" Or, this could be formulated as an hypothesis: "Color and shape affect the the flies' behavior when visiting the plant, and thus affect the plant's catch rate." Notice this is not just a numerical description, but an ecological mechanism.
+
+Now you want to test this question (or hypothesis) with your data. Below, state the relevant statistical hypotheses. Note: the relevant comparison is to the "regular" or "non-variant" population (where *P(capture) = 0.083*).
+
+```         
+For the color variant:
+-   Null:
+-   Alternate:
+
+For the shape variant:
+-   Null:
+-   Alternate:
+```
+
+In the code chunk below, calculate the probability of the plants having caught as many or fewer flies than you observed, if the null hypothesis were true.
+
+```{r}
+# For the color variant:
+
+
+# For the shape variant:
+```
