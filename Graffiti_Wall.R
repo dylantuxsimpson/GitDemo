@@ -10,3 +10,4 @@
 ## After you've complete this, we'll modify an actual R script,
 ## just to see how it's different.
 
+Attendance = c("Dylan", "Ryan", "Vicki", "Emma", "Caroline", "Ceci", "Orly", "Mairin")
